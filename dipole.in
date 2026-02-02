@@ -1,0 +1,64 @@
+units real # time in fs; temperature in K; energy in Kcal/mole; pressure in atomspheres 
+dimension 3
+boundary p p p
+atom_style full
+box tilt   large
+
+variable dt equal 0.25
+variable temp equal 300
+variable DPtemp equal 1
+variable tdamp equal 100*${dt}
+variable pdamp equal 1000*${dt}
+                  
+timestep ${dt}
+
+############          force field setting        ############
+bond_style      harmonic
+angle_style     cosine/periodic
+dihedral_style  harmonic
+improper_style  fourier
+
+pair_style      lj/cut/thole/long 2.4 12.5  
+pair_modify     tail yes mix arithmetic
+
+special_bonds   lj/coul 0.0 0.0 1.0
+
+kspace_style    ewald 1.0e-6
+
+read_data pristine.data  extra/special/per/atom 8
+
+comm_modify vel yes
+
+group gCORES type 1:4
+group gDRUDES type 5:7
+
+fix DRUDE all drude C C C N D D D  
+
+neighbor        2.0 bin
+neigh_modify    every 1 delay 0 check yes
+
+velocity        gCORES create ${temp} 6789 mom yes rot yes
+velocity        gDRUDES create ${DPtemp} 6789 mom yes rot yes
+############    nvt ensemble        ############
+run_style       verlet
+compute TDRUDE all temp/drude
+fix fLANG all langevin/drude ${temp} ${tdamp} 12435 ${DPtemp} ${tdamp} 101112 zero yes
+fix fNVE all nve
+fix MOMENTUM all momentum 100 linear 1 1 1
+
+############    dipole moment sampling       ############
+reset_timestep  0
+
+# variable E0 equal 0.025711 
+# fix field all efield v_E0 0.0 0.0 
+
+compute Mt all dipole
+variable Mtx equal c_Mt[1]
+variable Mty equal c_Mt[2]
+variable Mtz equal c_Mt[3]
+
+thermo 400
+log log2.thermo
+thermo_style custom step temp c_TDRUDE[1] c_TDRUDE[2] v_Mtx v_Mty v_Mtz press etotal
+
+run 4000000 # 1 ns
