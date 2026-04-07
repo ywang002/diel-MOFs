@@ -55,4 +55,4 @@ thermo      400
 log log1.thermo
 thermo_style custom step temp c_TDRUDE[1] c_TDRUDE[2] pe etotal press vol lx ly lz density
 
-run         4000000
+run         2000000 # 500 ps  
